@@ -37,18 +37,22 @@ def list_jobs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+from fastapi.responses import StreamingResponse
+
 @router.post("/grid")
 def request_gridded_jobs(request: JobRequestModel):
     try:
-        res = openeo_client_instance.request_gridded_jobs(
-            bbox=request.bbox.model_dump(),
-            grid=request.grid.model_dump(),
-            seasons=[s.model_dump() for s in request.seasons],
-            collection=request.collection,
-            job_options=request.job_options,
-            mgrs_tile=request.mgrs_tile
+        return StreamingResponse(
+            openeo_client_instance.request_gridded_jobs_stream(
+                bbox=request.bbox.model_dump(),
+                grid=request.grid.model_dump(),
+                seasons=[s.model_dump() for s in request.seasons],
+                collection=request.collection,
+                job_options=request.job_options,
+                mgrs_tile=request.mgrs_tile
+            ),
+            media_type="application/x-ndjson"
         )
-        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

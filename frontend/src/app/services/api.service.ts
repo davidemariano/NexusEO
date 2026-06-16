@@ -6,6 +6,18 @@ export interface BBox { west: number; south: number; east: number; north: number
 export interface GridConfig { cols: number; rows: number; }
 export interface SeasonConfig { name: string; time_range: string; }
 
+export interface SoilGridsRequest {
+  bbox: {
+    west: number;
+    south: number;
+    east: number;
+    north: number;
+  };
+  properties: string[];
+  depths: string[];
+  stats: string[];
+}
+
 export interface SparkOptions {
   'executor-memory': string;
   'executor-memoryOverhead': string;
@@ -52,6 +64,10 @@ export class ApiService {
 
   restartJob(id: string): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/${id}/restart`, {});
+  }
+
+  downloadSoilGrids(req: SoilGridsRequest): Observable<any> {
+    return this.http.post('http://localhost:8000/api/soilgrids/download', req);
   }
 
   downloadJob(id: string): Observable<any> {

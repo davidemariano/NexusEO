@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import openeo_jobs
+from routers import openeo_jobs, soilgrids
 import logging
 import sys
 
@@ -28,6 +28,7 @@ app.add_middleware(
 )
 
 app.include_router(openeo_jobs.router, prefix="/api/jobs", tags=["Jobs"])
+app.include_router(soilgrids.router, prefix="/api/soilgrids", tags=["SoilGrids"])
 
 @app.get("/")
 def read_root():

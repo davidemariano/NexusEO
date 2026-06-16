@@ -2,9 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService, JobRequest, SeasonConfig } from '../services/api.service';
-// @ts-ignore
-import * as mgrs from 'mgrs';
-
+import { convertMGRSToBBox } from '../utils/mgrs-utils';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -15,10 +13,13 @@ import * as mgrs from 'mgrs';
 export class DashboardComponent implements OnInit {
   jobs: any[] = [];
   loading = false;
+  loadingJobs = false;
+  loadingMessage = 'Avvia Job Terrascope';
   selectedJobDiag: any = null;
   loadingInfoMap: { [id: string]: boolean } = {};
   loadingDownloadMap: { [id: string]: boolean } = {};
   loadingRetryMap: { [id: string]: boolean } = {};
+  loadingDeleteMap: { [id: string]: boolean } = {};
 
   mgrsInput: string = '';
 
@@ -43,33 +44,24 @@ export class DashboardComponent implements OnInit {
   }
 
   loadJobs() {
+    this.loadingJobs = true;
     this.api.getJobs().subscribe({
-      next: (data) => this.jobs = data,
-      error: (err) => console.error(err)
+      next: (data) => {
+        this.jobs = data;
+        this.loadingJobs = false;
+      },
+      error: (err) => {
+        console.error(err);
+        this.loadingJobs = false;
+      }
     });
   }
 
   convertMGRS() {
     if (!this.mgrsInput) return;
     try {
-      let base = this.mgrsInput.trim().toUpperCase().replace(/\s/g, '');
-      if (base.length <= 5) {
-        // Tile 100kmx100km (e.g. 32TNR)
-        // Pad to 10 digits for SW and NE corners
-        let sw = mgrs.toPoint(base + '0000000000');
-        let ne = mgrs.toPoint(base + '9999999999');
-        this.request.bbox.west = sw[0];
-        this.request.bbox.south = sw[1];
-        this.request.bbox.east = ne[0];
-        this.request.bbox.north = ne[1];
-      } else {
-        // Exact point
-        let pt = mgrs.toPoint(base);
-        this.request.bbox.west = pt[0];
-        this.request.bbox.south = pt[1];
-        this.request.bbox.east = pt[0];
-        this.request.bbox.north = pt[1];
-      }
+      const bbox = convertMGRSToBBox(this.mgrsInput);
+      this.request.bbox = bbox;
     } catch (e) {
       alert("Formato MGRS non valido o libreria non caricata correttamente.");
     }
@@ -83,34 +75,80 @@ export class DashboardComponent implements OnInit {
     this.request.seasons.splice(index, 1);
   }
 
-  submitRequest() {
+  async submitRequest() {
     this.loading = true;
+    this.loadingMessage = 'Avvio richiesta in corso...';
+    
     this.request.job_options = {
       'executor-memory': `${this.sparkConfig.executorMemory}G`,
       'executor-memoryOverhead': `${this.sparkConfig.executorMemoryOverhead}G`,
       'python-memory': `${this.sparkConfig.pythonMemory}G`
     };
+    
     if (this.mgrsInput && this.mgrsInput.trim()) {
       this.request.mgrs_tile = this.mgrsInput.trim();
     } else {
       this.request.mgrs_tile = undefined;
     }
-    this.api.requestGriddedJobs(this.request).subscribe({
-      next: (res) => {
-        alert(`Richiesta inviata: ${res.launched_jobs?.length || 0} jobs avviati.`);
-        this.loading = false;
-        this.loadJobs();
-      },
-      error: (err) => {
-        alert(`Errore: ${err.message}`);
-        this.loading = false;
+
+    try {
+      const response = await fetch('http://localhost:8000/api/jobs/grid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.request)
+      });
+      
+      if (!response.body) throw new Error('ReadableStream non supportato dal browser.');
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(l => l.trim() !== '');
+        
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            if (data.message) {
+              this.loadingMessage = data.message;
+            }
+            if (data.error) {
+               console.error('Errore nel job ricevuto dal server:', data.message);
+            }
+            if (data.done) {
+               alert(`Elaborazione completata. Lanciati: ${data.launched_jobs?.length || 0} jobs. Errori: ${data.errors?.length || 0}`);
+            }
+          } catch (e) {
+            console.error('JSON parse error su linea dello stream:', line);
+          }
+        }
       }
-    });
+    } catch (err: any) {
+      alert(`Errore di rete o del server: ${err.message}`);
+    } finally {
+      this.loading = false;
+      this.loadingMessage = 'Avvia Job Terrascope';
+      this.loadJobs();
+    }
   }
 
   deleteJob(id: string) {
     if (confirm('Sei sicuro di voler eliminare questo job?')) {
-      this.api.deleteJob(id).subscribe(() => this.loadJobs());
+      this.loadingDeleteMap[id] = true;
+      this.api.deleteJob(id).subscribe({
+        next: () => {
+          this.loadingDeleteMap[id] = false;
+          this.loadJobs();
+        },
+        error: (err) => {
+          console.error(err);
+          this.loadingDeleteMap[id] = false;
+        }
+      });
     }
   }
 

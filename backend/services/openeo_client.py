@@ -141,10 +141,24 @@ class OpenEOClient:
         
         return {"status": "success", "processed": len(finished_jobs), "details": results}
 
-    def request_gridded_jobs(self, bbox: dict, grid: dict, seasons: list, collection="SENTINEL2_L2A", job_options: dict = None, mgrs_tile: str = None):
-        logger.info(f"Avviata request_gridded_jobs con bbox: {bbox}, grid: {grid}, seasons: {seasons}, mgrs_tile: {mgrs_tile}")
-        logger.info(f"Opzioni Job Spark passate: {job_options}")
+    def request_gridded_jobs_stream(self, bbox: dict, grid: dict, seasons: list, collection="SENTINEL2_L2A", job_options: dict = None, mgrs_tile: str = None):
+        import json
+        msg = f"Avviata request_gridded_jobs con bbox: {bbox}, grid: {grid}, stagioni: {len(seasons)}"
+        logger.info(msg)
+        yield json.dumps({"message": msg}) + "\n"
+        
+        msg = f"Opzioni Job Spark passate: {job_options}"
+        logger.info(msg)
+        yield json.dumps({"message": msg}) + "\n"
+        
+        msg = f"Avvio connessione verso i server Terrascope ({self.backend_url})..."
+        logger.info(msg)
+        yield json.dumps({"message": msg}) + "\n"
+        
         conn = self.connect()
+        
+        msg = "Autenticazione OIDC completata e connessione stabilita."
+        yield json.dumps({"message": msg}) + "\n"
         
         west_tot = bbox["west"]
         south_tot = bbox["south"]
@@ -177,13 +191,16 @@ class OpenEOClient:
 
         for season in seasons:
             season_name = season["name"]
-            time_range = season["time_range"] # e.g. "2024-04-01/2024-06-30"
+            time_range = season["time_range"]
             start_date, end_date = time_range.split("/")
             year = start_date.split("-")[0]
             
             for idx, extent in enumerate(chunks):
-                chunk_id = f"C{idx+1:02d}"
-                logger.info(f"Processando chunk {chunk_id} per la stagione '{season_name}'. Extent: {extent}")
+                chunk_id_log = f"C{idx+1:02d}"
+                msg = f"Processando chunk {chunk_id_log} per la stagione '{season_name}'. Extent: {extent}"
+                logger.info(msg)
+                yield json.dumps({"message": msg}) + "\n"
+                
                 try:
                     cube = conn.load_collection(
                         collection,
@@ -202,35 +219,51 @@ class OpenEOClient:
                     ndvi_median = ndvi_cube.reduce_dimension(dimension="t", reducer="median")
                     ndmi_median = ndmi_cube.reduce_dimension(dimension="t", reducer="median")
 
-                    if mgrs_tile:
-                        job_title_ndvi = f"NDVI_{year}_{season_name}_{chunk_id}_{mgrs_tile}"
-                        job_title_ndmi = f"NDMI_{year}_{season_name}_{chunk_id}_{mgrs_tile}"
-                    else:
-                        job_title_ndvi = f"NDVI_{year}_{season_name}_{chunk_id}"
-                        job_title_ndmi = f"NDMI_{year}_{season_name}_{chunk_id}"
+                    prefix = f"{mgrs_tile}_" if mgrs_tile else ""
+                    chunk_suffix = f"_C{idx+1:02d}" if (cols > 1 or rows > 1) else ""
+                    
+                    job_title_ndvi = f"{prefix}NDVI_{year}_{season_name}{chunk_suffix}"
+                    job_title_ndmi = f"{prefix}NDMI_{year}_{season_name}{chunk_suffix}"
 
-                    logger.info(f"Creazione e avvio del job per {job_title_ndvi}...")
+                    msg = f"Creazione e avvio del job per {job_title_ndvi}..."
+                    logger.info(msg)
+                    yield json.dumps({"message": msg}) + "\n"
+                    
                     job_ndvi = ndvi_median.create_job(title=job_title_ndvi, out_format="GTiff", job_options=job_options)
                     job_ndvi.start()
-                    logger.info(f"Job {job_title_ndvi} avviato con ID: {job_ndvi.job_id}")
                     
-                    logger.info(f"Creazione e avvio del job per {job_title_ndmi}...")
+                    msg = f"Job {job_title_ndvi} avviato con ID: {job_ndvi.job_id}"
+                    logger.info(msg)
+                    yield json.dumps({"message": msg}) + "\n"
+                    
+                    msg = f"Creazione e avvio del job per {job_title_ndmi}..."
+                    logger.info(msg)
+                    yield json.dumps({"message": msg}) + "\n"
+                    
                     job_ndmi = ndmi_median.create_job(title=job_title_ndmi, out_format="GTiff", job_options=job_options)
                     job_ndmi.start()
-                    logger.info(f"Job {job_title_ndmi} avviato con ID: {job_ndmi.job_id}")
+                    
+                    msg = f"Job {job_title_ndmi} avviato con ID: {job_ndmi.job_id}"
+                    logger.info(msg)
+                    yield json.dumps({"message": msg}) + "\n"
                     
                     launched_jobs.append({"title": job_title_ndvi, "job_id": job_ndvi.job_id})
                     launched_jobs.append({"title": job_title_ndmi, "job_id": job_ndmi.job_id})
                     
-                    time.sleep(3) # Throttle
+                    time.sleep(3)
                 except Exception as e:
-                    logger.error(f"Errore durante la sottomissione dei job per il chunk {chunk_id} - {season_name}: {str(e)}")
-                    errors.append({"chunk_id": chunk_id, "season": season_name, "error": str(e)})
+                    msg = f"Errore durante la sottomissione dei job per il chunk {chunk_id_log} - {season_name}: {str(e)}"
+                    logger.error(msg)
+                    errors.append({"chunk_id": chunk_id_log, "season": season_name, "error": str(e)})
+                    yield json.dumps({"message": msg, "error": True}) + "\n"
 
-        logger.info(f"Completato l'invio batch. Lanciati {len(launched_jobs)} jobs. Errori: {len(errors)}")
-        return {
+        msg = f"Completato l'invio batch. Lanciati {len(launched_jobs)} jobs. Errori: {len(errors)}"
+        logger.info(msg)
+        yield json.dumps({
+            "message": msg,
             "launched_jobs": launched_jobs,
-            "errors": errors
-        }
+            "errors": errors,
+            "done": True
+        }) + "\n"
 
 openeo_client_instance = OpenEOClient()

@@ -81,8 +81,8 @@
             </div>
           </div>
 
-          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:16px" [disabled]="loading">
-            {{ loading ? 'Invio in corso...' : 'Avvia Job Terrascope' }}
+          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:16px" [disabled]="loading" (click)="submitRequest()">
+            <span class="spinner" *ngIf="loading"></span> {{ loadingMessage }}
           </button>
         </form>
       </section>
@@ -110,29 +110,43 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let job of jobs">
-                <td class="job-id">{{ job.id }}</td>
-                <td>{{ job.title || 'Untitled' }}</td>
-                <td>
-                  <span class="badge" [ngClass]="job.status">{{ job.status }}</span>
-                </td>
-                <td>{{ job.created | date:'short' }}</td>
-                <td class="row-actions">
-                  <button class="btn btn-outline btn-sm" (click)="infoJob(job.id)" [disabled]="loadingInfoMap[job.id]">
-                    <span class="spinner" *ngIf="loadingInfoMap[job.id]"></span> Info
-                  </button>
-                  <button class="btn btn-primary btn-sm" *ngIf="job.status === 'error' || job.status === 'canceled'" (click)="retryJob(job.id)" [disabled]="loadingRetryMap[job.id]">
-                    <span class="spinner" *ngIf="loadingRetryMap[job.id]"></span> Riavvia
-                  </button>
-                  <button class="btn btn-outline btn-sm" *ngIf="job.status === 'finished'" (click)="downloadJob(job.id)" [disabled]="loadingDownloadMap[job.id]">
-                    <span class="spinner" *ngIf="loadingDownloadMap[job.id]"></span> Scarica
-                  </button>
-                  <button class="btn btn-danger btn-sm" (click)="deleteJob(job.id)">Elimina</button>
-                </td>
-              </tr>
-              <tr *ngIf="jobs.length === 0">
-                <td colspan="5" class="empty-state">Nessun job trovato.</td>
-              </tr>
+              <ng-container *ngIf="loadingJobs">
+                <tr *ngFor="let i of [1,2,3,4,5]" class="skeleton-row">
+                  <td><div class="skeleton-cell"></div></td>
+                  <td><div class="skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton-cell"></div></td>
+                </tr>
+              </ng-container>
+
+              <ng-container *ngIf="!loadingJobs">
+                <tr *ngFor="let job of jobs">
+                  <td class="job-id">{{ job.id }}</td>
+                  <td>{{ job.title || 'Untitled' }}</td>
+                  <td>
+                    <span class="badge" [ngClass]="job.status">{{ job.status }}</span>
+                  </td>
+                  <td>{{ job.created | date:'short' }}</td>
+                  <td class="row-actions">
+                    <button class="btn btn-outline btn-sm" (click)="infoJob(job.id)" [disabled]="loadingInfoMap[job.id]">
+                      <span class="spinner" *ngIf="loadingInfoMap[job.id]"></span> Info
+                    </button>
+                    <button class="btn btn-primary btn-sm" *ngIf="job.status === 'error' || job.status === 'canceled'" (click)="retryJob(job.id)" [disabled]="loadingRetryMap[job.id]">
+                      <span class="spinner" *ngIf="loadingRetryMap[job.id]"></span> Riavvia
+                    </button>
+                    <button class="btn btn-outline btn-sm" *ngIf="job.status === 'finished'" (click)="downloadJob(job.id)" [disabled]="loadingDownloadMap[job.id]">
+                      <span class="spinner" *ngIf="loadingDownloadMap[job.id]"></span> Scarica
+                    </button>
+                    <button class="btn btn-danger btn-sm" (click)="deleteJob(job.id)" [disabled]="loadingDeleteMap[job.id]">
+                      <span class="spinner" *ngIf="loadingDeleteMap[job.id]"></span> Elimina
+                    </button>
+                  </td>
+                </tr>
+                <tr *ngIf="jobs.length === 0">
+                  <td colspan="5" class="empty-state">Nessun job trovato.</td>
+                </tr>
+              </ng-container>
             </tbody>
           </table>
         </div>

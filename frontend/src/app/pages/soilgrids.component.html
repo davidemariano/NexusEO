@@ -1,0 +1,105 @@
+<div class="dashboard-header">
+  <h2>Download SoilGrids Data</h2>
+  <p>Recupera strati informativi del suolo da ISRIC inserendo una Bounding Box o un codice MGRS.</p>
+</div>
+
+<div class="layout-grid">
+  <div class="sidebar">
+    <div class="glass-panel form-panel">
+      <h3>Area di Interesse</h3>
+      
+      <div class="form-group">
+        <label>Inserisci MGRS (Opzionale)</label>
+        <div class="mgrs-input-group">
+          <input type="text" class="input-control" [(ngModel)]="mgrsInput" placeholder="es. 32TNR">
+          <button class="btn btn-outline" (click)="convertMGRS()">Converti</button>
+        </div>
+        <small class="hint">Converti in Bounding Box</small>
+      </div>
+
+      <div class="bbox-grid">
+        <div class="form-group">
+          <label>Ovest</label>
+          <input type="number" class="input-control" [(ngModel)]="request.bbox.west">
+        </div>
+        <div class="form-group">
+          <label>Sud</label>
+          <input type="number" class="input-control" [(ngModel)]="request.bbox.south">
+        </div>
+        <div class="form-group">
+          <label>Est</label>
+          <input type="number" class="input-control" [(ngModel)]="request.bbox.east">
+        </div>
+        <div class="form-group">
+          <label>Nord</label>
+          <input type="number" class="input-control" [(ngModel)]="request.bbox.north">
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-panel form-panel mt-4">
+      <h3>Selezioni SoilGrids</h3>
+      
+      <div class="form-group">
+        <label>Properties (es. cec, soc)</label>
+        <div class="checkbox-grid">
+          <label class="checkbox-item" *ngFor="let prop of availableProperties">
+            <input type="checkbox" 
+                   [checked]="request.properties.includes(prop)" 
+                   (change)="toggleSelection('properties', prop)">
+            <span>{{ prop }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Depths</label>
+        <div class="checkbox-grid">
+          <label class="checkbox-item" *ngFor="let depth of availableDepths">
+            <input type="checkbox" 
+                   [checked]="request.depths.includes(depth)" 
+                   (change)="toggleSelection('depths', depth)">
+            <span>{{ depth }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Stats</label>
+        <div class="checkbox-grid">
+          <label class="checkbox-item" *ngFor="let stat of availableStats">
+            <input type="checkbox" 
+                   [checked]="request.stats.includes(stat)" 
+                   (change)="toggleSelection('stats', stat)">
+            <span>{{ stat }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="actions mt-4">
+        <button class="btn btn-primary w-100" (click)="submitRequest()" [disabled]="loading">
+          <span class="spinner" *ngIf="loading"></span> 
+          Avvia Download Background
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="glass-panel list-panel">
+      <div class="panel-header">
+        <h3>Informazioni</h3>
+      </div>
+      <div class="panel-body info-body">
+        <p>I download da SoilGrids (WCS 2.0.1) possono impiegare diverso tempo a causa della dimensione dei GeoTIFF e dei limiti del server ISRIC.</p>
+        <p><strong>Cosa succede quando avvii il download?</strong></p>
+        <ul>
+          <li>La richiesta viene inviata al backend.</li>
+          <li>Il backend risponde immediatamente e avvia un task in background.</li>
+          <li>I file `.tif` verranno scaricati e salvati nella directory <code>dependencies/soilgrids_data/</code> del server.</li>
+          <li>Puoi monitorare il progresso guardando il log del backend (<code>backend.log</code>).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
