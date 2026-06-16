@@ -1,0 +1,66 @@
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs e Database
+*.log
+backend.log
+*.sqlite3
+
+# Frontend / Angular / Node
+node_modules/
+dist/
+.angular/
+.cache/
+coverage/
+*.js.map
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+dependencies/
+
+# File specifici da ignorare richiesti
+delete_terrascope_request.py
+delete_massive_terrascope_requests.py
+download_terrascope_requests.py
+download_ndvi_ndmi_terrascope_data.py
+download_stac_data.py
+download_soilgrids_data.py
+info_job_terrascope.py
+retry_error_job_terrascope.py
+request_terrascope.py
+
+italy_tiles.*

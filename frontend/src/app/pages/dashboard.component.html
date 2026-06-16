@@ -1,0 +1,167 @@
+    <div class="dashboard-grid">
+      <!-- Form Section -->
+      <section class="glass-panel form-section">
+        <h2>Nuova Richiesta Terrascope</h2>
+        <p class="subtitle">Configura la griglia ed avvia il processing su openEO.</p>
+        
+        <form (ngSubmit)="submitRequest()">
+          <div class="input-group" style="margin-bottom: 16px;">
+            <label class="input-label">MGRS Tile (es. 32TNR) o coordinata MGRS</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="input-control" [(ngModel)]="mgrsInput" name="mgrsInput" placeholder="Inserisci MGRS per auto-compilare la BBox" style="flex: 1;">
+              <button type="button" class="btn btn-outline" (click)="convertMGRS()">Converti a BBox</button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="input-group">
+              <label class="input-label">West (Lon. Ovest)</label>
+              <input type="number" class="input-control" [(ngModel)]="request.bbox.west" name="west" step="0.000001">
+            </div>
+            <div class="input-group">
+              <label class="input-label">South (Lat. Sud)</label>
+              <input type="number" class="input-control" [(ngModel)]="request.bbox.south" name="south" step="0.000001">
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="input-group">
+              <label class="input-label">East (Lon. Est)</label>
+              <input type="number" class="input-control" [(ngModel)]="request.bbox.east" name="east" step="0.000001">
+            </div>
+            <div class="input-group">
+              <label class="input-label">North (Lat. Nord)</label>
+              <input type="number" class="input-control" [(ngModel)]="request.bbox.north" name="north" step="0.000001">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="input-group">
+              <label class="input-label">Colonne (Grid)</label>
+              <input type="number" class="input-control" [(ngModel)]="request.grid.cols" name="cols">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Righe (Grid)</label>
+              <input type="number" class="input-control" [(ngModel)]="request.grid.rows" name="rows">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Stagioni (Es. Primavera, 2024-04-01/2024-06-30)</label>
+            <div class="season-row" *ngFor="let s of request.seasons; let i = index">
+              <input type="text" class="input-control" [(ngModel)]="s.name" name="sname{{i}}" placeholder="Nome (es. Primavera)">
+              <input type="text" class="input-control" [(ngModel)]="s.time_range" name="srange{{i}}" placeholder="Intervallo">
+              <button type="button" class="btn btn-danger btn-sm" (click)="removeSeason(i)">x</button>
+            </div>
+            <button type="button" class="btn btn-outline" style="width:100%; margin-top:8px" (click)="addSeason()">+ Aggiungi Stagione</button>
+          </div>
+
+          <div class="input-group" style="margin-top: 16px;">
+            <label class="input-label">Appunti (Non verranno inviati nel form)</label>
+            <textarea class="input-control" rows="3" placeholder="Incolla qui i tuoi appunti..."></textarea>
+          </div>
+
+          <div style="margin-top: 16px; margin-bottom: 8px;">
+            <h4 style="margin-bottom: 8px; font-size: 14px;">Spark Options</h4>
+            <div class="form-row">
+              <div class="input-group">
+                <label class="input-label">Executor Memory: {{sparkConfig.executorMemory}}G</label>
+                <input type="range" min="1" max="15" step="1" [(ngModel)]="sparkConfig.executorMemory" name="execMem">
+              </div>
+              <div class="input-group">
+                <label class="input-label">Executor Mem Overhead: {{sparkConfig.executorMemoryOverhead}}G</label>
+                <input type="range" min="1" max="8" step="1" [(ngModel)]="sparkConfig.executorMemoryOverhead" name="execMemOverhead">
+              </div>
+            </div>
+            <div class="form-row" style="margin-top: 8px;">
+              <div class="input-group">
+                <label class="input-label">Python Memory: {{sparkConfig.pythonMemory}}G</label>
+                <input type="range" min="1" max="8" step="1" [(ngModel)]="sparkConfig.pythonMemory" name="pyMem">
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:16px" [disabled]="loading">
+            {{ loading ? 'Invio in corso...' : 'Avvia Job Terrascope' }}
+          </button>
+        </form>
+      </section>
+
+      <!-- Jobs List Section -->
+      <section class="glass-panel list-section">
+        <div class="list-header">
+          <h2>Jobs Recenti</h2>
+          <div class="actions">
+            <button class="btn btn-outline" (click)="loadJobs()">Aggiorna</button>
+            <button class="btn btn-primary" (click)="downloadAll()">Scarica Finiti</button>
+            <button class="btn btn-danger" (click)="deleteBatch()">Pulisci (Finiti/Errori)</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="jobs-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Titolo</th>
+                <th>Status</th>
+                <th>Creazione</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let job of jobs">
+                <td class="job-id">{{ job.id }}</td>
+                <td>{{ job.title || 'Untitled' }}</td>
+                <td>
+                  <span class="badge" [ngClass]="job.status">{{ job.status }}</span>
+                </td>
+                <td>{{ job.created | date:'short' }}</td>
+                <td class="row-actions">
+                  <button class="btn btn-outline btn-sm" (click)="infoJob(job.id)" [disabled]="loadingInfoMap[job.id]">
+                    <span class="spinner" *ngIf="loadingInfoMap[job.id]"></span> Info
+                  </button>
+                  <button class="btn btn-primary btn-sm" *ngIf="job.status === 'error' || job.status === 'canceled'" (click)="retryJob(job.id)" [disabled]="loadingRetryMap[job.id]">
+                    <span class="spinner" *ngIf="loadingRetryMap[job.id]"></span> Riavvia
+                  </button>
+                  <button class="btn btn-outline btn-sm" *ngIf="job.status === 'finished'" (click)="downloadJob(job.id)" [disabled]="loadingDownloadMap[job.id]">
+                    <span class="spinner" *ngIf="loadingDownloadMap[job.id]"></span> Scarica
+                  </button>
+                  <button class="btn btn-danger btn-sm" (click)="deleteJob(job.id)">Elimina</button>
+                </td>
+              </tr>
+              <tr *ngIf="jobs.length === 0">
+                <td colspan="5" class="empty-state">Nessun job trovato.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Modal Diagnostica -->
+    <div class="modal-overlay" *ngIf="selectedJobDiag">
+      <div class="modal-content glass-panel">
+        <h3 style="margin-bottom:12px;">Diagnostica Job: {{ selectedJobDiag.title }}</h3>
+        <p><strong>ID:</strong> {{ selectedJobDiag.id }}</p>
+        <p><strong>Status:</strong> {{ selectedJobDiag.status | uppercase }}</p>
+        
+        <div *ngIf="selectedJobDiag.error_details" class="error-box">
+          <p><strong>Errore ({{ selectedJobDiag.error_details.code }}):</strong> {{ selectedJobDiag.error_details.message }}</p>
+        </div>
+        
+        <h4 style="margin-top:20px;">Log e Anomalie:</h4>
+        <ul class="log-list" *ngIf="selectedJobDiag.anomalies && selectedJobDiag.anomalies.length > 0">
+          <li *ngFor="let log of selectedJobDiag.anomalies" [ngClass]="log.level">
+            <strong>[{{ log.level | uppercase }}]</strong> {{ log.message }}
+          </li>
+        </ul>
+        <p *ngIf="!selectedJobDiag.anomalies || selectedJobDiag.anomalies.length === 0" style="margin-top:12px; color: var(--success);">
+          ✓ Nessuna anomalia rilevata nei log. L'elaborazione è pulita.
+        </p>
+        
+        <div style="margin-top: 24px; text-align: right;">
+          <button class="btn btn-primary" (click)="selectedJobDiag = null">Chiudi</button>
+        </div>
+      </div>
+    </div>
