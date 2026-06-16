@@ -1,6 +1,6 @@
-# Terrascope openEO Dashboard
+# NexusEO
 
-Questa applicazione è una dashboard completa per l'interazione con l'infrastruttura **Terrascope** tramite **openEO**. Nasce con l'obiettivo di semplificare, automatizzare e scalare l'elaborazione di dati satellitari (in particolare il calcolo dell'indice NDVI) coprendo aree geografiche estese tramite il frazionamento delle richieste.
+**NexusEO** è un gateway unificato per l'accesso a dati geospaziali e ambientali. Centralizza l'estrazione di flussi eterogenei (cataloghi STAC, SoilGrids, OpenMeteo) in un singolo endpoint scalabile, ottimizzando i workflow per l'osservazione terrestre e l'analisi spaziale.
 
 ## Architettura del Sistema
 
